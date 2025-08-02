@@ -4,7 +4,156 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DeskSort</title>
-    <link rel="stylesheet" href="./styles.css">
+    <style>
+        :root {
+            --primary: #007AFF;
+            --bg: #F2F2F7;
+            --card: #FFFFFF;
+            --text: #1C1C1E;
+            --border: #E5E5EA;
+            --success: #34C759;
+            --error: #FF3B30;
+            --radius: 12px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, system-ui, sans-serif;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 24px;
+            width: 100%;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .logo svg {
+            color: var(--primary);
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .action-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 32px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .sort-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: var(--radius);
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            transition: transform 0.2s;
+        }
+
+        .sort-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .sort-btn:active {
+            transform: translateY(0);
+        }
+
+        .settings-btn {
+            background: none;
+            border: none;
+            color: var(--primary);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 8px;
+        }
+
+        .settings-btn:hover {
+            text-decoration: underline;
+        }
+
+        .status {
+            padding: 12px 24px;
+            border-radius: var(--radius);
+            font-weight: 500;
+            display: none;
+        }
+
+        .status.success {
+            background: rgba(52, 199, 89, 0.1);
+            color: var(--success);
+        }
+
+        .status.error {
+            background: rgba(255, 59, 48, 0.1);
+            color: var(--error);
+        }
+
+        .log {
+            max-height: 200px;
+            overflow-y: auto;
+            width: 100%;
+            max-width: 400px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .log-entry {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .log-entry:last-child {
+            border: none;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -15,41 +164,74 @@
                 </svg>
                 <h1>DeskSort</h1>
             </div>
-            <p class="subtitle">Keep your desktop clean and organized</p>
         </header>
 
-        <main>
-            <div class="card action-card">
-                <button id="sortNowBtn" class="primary-button">
+        <div class="main-content">
+            <div class="action-card">
+                <button id="sortBtn" class="sort-btn">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                         <path d="M3 6h18M3 12h18M3 18h18" stroke-width="2" stroke-linecap="round"/>
                     </svg>
-                    Sort Now
+                    Sort Desktop
                 </button>
-                <div id="sortingStatus" class="status-box"></div>
+                <div id="status" class="status"></div>
             </div>
 
-            <div class="card settings-card">
-                <div class="card-header">
-                    <h2>Category Paths</h2>
-                    <button id="saveSettingsBtn" class="secondary-button">Save</button>
-                </div>
-                
-                <div class="settings-grid" id="categoryMappings">
-                </div>
-            </div>
+            <div id="log" class="log"></div>
 
-            <div class="card log-card">
-                <div class="card-header">
-                    <h2>Activity Log</h2>
-                    <button id="clearLogBtn" class="text-button">Clear</button>
-                </div>
-                <div id="logContainer" class="log-container">
-                </div>
-            </div>
-        </main>
+            <button id="settingsBtn" class="settings-btn" onclick="window.location.href='settings.html'">
+                Configure Paths
+            </button>
+        </div>
     </div>
 
-    <script src="./main.js" type="module"></script>
+    <script type="module">
+        import { invoke } from '@tauri-apps/api/tauri';
+
+        const sortBtn = document.getElementById('sortBtn');
+        const status = document.getElementById('status');
+        const log = document.getElementById('log');
+
+        async function sortDesktop() {
+            try {
+                sortBtn.disabled = true;
+                status.textContent = 'Sorting...';
+                status.className = 'status';
+                status.style.display = 'block';
+
+                const result = await invoke('scan_and_sort');
+
+                if (result.errors.length > 0) {
+                    status.textContent = `Completed with ${result.errors.length} errors`;
+                    status.className = 'status error';
+                } else {
+                    status.textContent = `Moved ${result.moved_files.length} items`;
+                    status.className = 'status success';
+                }
+
+                result.moved_files.forEach(msg => addLog(`✓ ${msg}`));
+                result.errors.forEach(err => addLog(`⚠ ${err}`));
+
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 5000);
+            } catch (e) {
+                status.textContent = 'Failed to sort desktop';
+                status.className = 'status error';
+                addLog(`Error: ${e}`);
+            } finally {
+                sortBtn.disabled = false;
+            }
+        }
+
+        function addLog(msg) {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = msg;
+            log.insertBefore(entry, log.firstChild);
+        }
+
+        sortBtn.onclick = sortDesktop;
+    </script>
 </body>
 </html> 

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeskSort Settings</title>
+    <style>
+        :root {
+            --primary: #007AFF;
+            --bg: #F2F2F7;
+            --card: #FFFFFF;
+            --text: #1C1C1E;
+            --border: #E5E5EA;
+            --radius: 12px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, system-ui, sans-serif;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--primary);
+            cursor: pointer;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .back-btn:hover {
+            text-decoration: underline;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            margin-bottom: 16px;
+        }
+
+        .extension-group {
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+        }
+
+        .extension-group:last-child {
+            border: none;
+        }
+
+        .extension-header {
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .extension-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .extension-item {
+            background: var(--bg);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .path-input {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 14px;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: var(--radius);
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        button.browse {
+            background: var(--bg);
+            color: var(--primary);
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .status {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            background: var(--card);
+            border-radius: var(--radius);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        @media (max-width: 600px) {
+            .extension-list {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <button class="back-btn" onclick="window.location.href='index.html'">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M19 12H5M12 19l-7-7 7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Back
+                </button>
+                <h1>Settings</h1>
+            </div>
+            <button id="saveBtn">Save All</button>
+        </header>
+
+        <div class="card">
+            <div id="extensionGroups"></div>
+        </div>
+    </div>
+
+    <div id="status" class="status"></div>
+
+    <script type="module">
+        import { invoke } from '@tauri-apps/api/tauri';
+        import { open } from '@tauri-apps/api/dialog';
+
+        const EXTENSIONS = {
+            Documents: ['.pdf', '.docx', '.doc', '.txt', '.odt', '.rtf'],
+            Spreadsheets: ['.xls', '.xlsx', '.csv', '.ods'],
+            Presentations: ['.pptx', '.odp', '.key'],
+            Images: ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff'],
+            Videos: ['.mp4', '.mkv', '.avi', '.mov', '.webm', '.flv', '.wmv'],
+            Audio: ['.mp3', '.wav', '.aac', '.ogg', '.flac'],
+            Archives: ['.zip', '.rar', '.7z', '.tar', '.gz', '.tar.gz'],
+            Executables: ['.exe', '.msi', '.sh', '.bat', '.AppImage'],
+            Code: ['.js', '.py', '.rs', '.cpp', '.java', '.html', '.css', '.json', '.ts'],
+            Folders: ['folder']
+        };
+
+        const extensionGroups = document.getElementById('extensionGroups');
+        const saveBtn = document.getElementById('saveBtn');
+        const status = document.getElementById('status');
+
+        async function init() {
+            const mappings = await invoke('get_all_mappings');
+            const mappingMap = new Map(mappings.map(m => [m.extension, m.target_path]));
+            
+            extensionGroups.innerHTML = Object.entries(EXTENSIONS).map(([group, exts]) => {
+                const path = mappingMap.get(exts[0]) || '';
+                return `
+                    <div class="extension-group">
+                        <div class="extension-header">${group}</div>
+                        <div class="extension-list">
+                            ${exts.map(ext => `
+                                <div class="extension-item">${ext}</div>
+                            `).join('')}
+                        </div>
+                        <div class="path-input">
+                            <input type="text" 
+                                id="${group}" 
+                                value="${path}" 
+                                placeholder="Select destination folder">
+                            <button class="browse" onclick="window.browsePath('${group}', ${JSON.stringify(exts)})">
+                                Browse
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.browsePath = async (groupId, extensions) => {
+            const selected = await open({
+                directory: true,
+                multiple: false
+            });
+            if (selected) {
+                document.getElementById(groupId).value = selected;
+            }
+        };
+
+        function showStatus(msg) {
+            status.textContent = msg;
+            status.style.display = 'block';
+            setTimeout(() => status.style.display = 'none', 3000);
+        }
+
+        saveBtn.onclick = async () => {
+            try {
+                for (const [group, exts] of Object.entries(EXTENSIONS)) {
+                    const path = document.getElementById(group).value.trim();
+                    if (path) {
+                        for (const ext of exts) {
+                            await invoke('set_path_mapping', { extension: ext, targetPath: path });
+                        }
+                    }
+                }
+                showStatus('Settings saved successfully');
+            } catch (e) {
+                showStatus('Failed to save settings');
+                console.error(e);
+            }
+        };
+
+        init();
+    </script>
+</body>
+</html> 
