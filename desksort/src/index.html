@@ -9,27 +9,46 @@
 <body>
     <div class="container">
         <header>
-            <h1>DeskSort</h1>
-            <p>Automatically organize your desktop files</p>
+            <div class="logo">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <h1>DeskSort</h1>
+            </div>
+            <p class="subtitle">Keep your desktop clean and organized</p>
         </header>
 
         <main>
-            <section class="action-section">
-                <button id="sortNowBtn" class="primary-button">Sort Now</button>
+            <div class="card action-card">
+                <button id="sortNowBtn" class="primary-button">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M3 6h18M3 12h18M3 18h18" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    Sort Now
+                </button>
                 <div id="sortingStatus" class="status-box"></div>
-            </section>
+            </div>
 
-            <section class="settings-section">
-                <h2>Settings</h2>
-                <div id="categoryMappings">
+            <div class="card settings-card">
+                <div class="card-header">
+                    <h2>Category Paths</h2>
+                    <button id="saveSettingsBtn" class="secondary-button">Save</button>
                 </div>
-                <button id="saveSettingsBtn" class="secondary-button">Save Settings</button>
-            </section>
+                
+                <div class="settings-grid" id="categoryMappings">
+                    <!-- Category mappings will be populated by JavaScript -->
+                </div>
+            </div>
 
-            <section class="log-section">
-                <h2>Activity Log</h2>
-                <div id="logContainer" class="log-container"></div>
-            </section>
+            <div class="card log-card">
+                <div class="card-header">
+                    <h2>Activity Log</h2>
+                    <button id="clearLogBtn" class="text-button">Clear</button>
+                </div>
+                <div id="logContainer" class="log-container">
+                    <!-- Log entries will be added here -->
+                </div>
+            </div>
         </main>
     </div>
 
