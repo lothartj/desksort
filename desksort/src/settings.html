@@ -193,6 +193,22 @@
     <div id="status" class="status"></div>
 
     <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const checkTauri = setInterval(() => {
+                if (window.__TAURI__) {
+                    clearInterval(checkTauri);
+                    init();
+                }
+            }, 50);
+            setTimeout(() => {
+                clearInterval(checkTauri);
+                if (!window.__TAURI__) {
+                    console.error('Tauri API not found after timeout');
+                    showStatus('Failed to initialize Tauri API', true);
+                }
+            }, 5000);
+        });
+
         let invoke;
         let dialog;
         let status;
@@ -212,6 +228,17 @@
             Folders: ['folder']
         };
 
+        function showStatus(msg, isError = false) {
+            console.log(`Status: ${msg} (${isError ? 'error' : 'success'})`);
+            if (!status) {
+                status = document.getElementById('status');
+            }
+            status.textContent = msg;
+            status.className = `status ${isError ? 'error' : 'success'}`;
+            status.style.display = 'block';
+            setTimeout(() => status.style.display = 'none', 3000);
+        }
+
         async function initTauri() {
             if (window.__TAURI__) {
                 invoke = window.__TAURI__.invoke;
@@ -229,16 +256,7 @@
                 extensionGroups = document.getElementById('extensionGroups');
                 saveBtn = document.getElementById('saveBtn');
 
-                let retries = 0;
-                while (retries < 10) {
-                    if (await initTauri()) {
-                        break;
-                    }
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    retries++;
-                }
-
-                if (!invoke || !dialog) {
+                if (!await initTauri()) {
                     throw new Error('Failed to initialize Tauri API');
                 }
 
@@ -301,14 +319,6 @@
         }
         window.browsePath = browsePath;
 
-        function showStatus(msg, isError = false) {
-            console.log(`Status: ${msg} (${isError ? 'error' : 'success'})`);
-            status.textContent = msg;
-            status.className = `status ${isError ? 'error' : 'success'}`;
-            status.style.display = 'block';
-            setTimeout(() => status.style.display = 'none', 3000);
-        }
-
         async function handleSave() {
             try {
                 console.log('Saving settings...');
@@ -334,8 +344,6 @@
                 showStatus('Failed to save settings', true);
             }
         }
-
-        init();
     </script>
 </body>
 </html> 

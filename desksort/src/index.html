@@ -186,10 +186,37 @@
     </div>
 
     <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const checkTauri = setInterval(() => {
+                if (window.__TAURI__) {
+                    clearInterval(checkTauri);
+                    init();
+                }
+            }, 50);
+            setTimeout(() => {
+                clearInterval(checkTauri);
+                if (!window.__TAURI__) {
+                    console.error('Tauri API not found after timeout');
+                    showStatus('Failed to initialize Tauri API', true);
+                }
+            }, 5000);
+        });
+
         let invoke;
         let sortBtn;
         let status;
         let log;
+
+        function showStatus(msg, isError = false) {
+            console.log(`Status: ${msg} (${isError ? 'error' : 'success'})`);
+            if (!status) {
+                status = document.getElementById('status');
+            }
+            status.textContent = msg;
+            status.className = `status ${isError ? 'error' : 'success'}`;
+            status.style.display = 'block';
+            setTimeout(() => status.style.display = 'none', 3000);
+        }
 
         async function initTauri() {
             if (window.__TAURI__) {
@@ -207,16 +234,7 @@
                 status = document.getElementById('status');
                 log = document.getElementById('log');
 
-                let retries = 0;
-                while (retries < 10) {
-                    if (await initTauri()) {
-                        break;
-                    }
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    retries++;
-                }
-
-                if (!invoke) {
+                if (!await initTauri()) {
                     throw new Error('Failed to initialize Tauri API');
                 }
 
@@ -265,8 +283,6 @@
             entry.textContent = msg;
             log.insertBefore(entry, log.firstChild);
         }
-
-        init();
     </script>
 </body>
 </html> 
