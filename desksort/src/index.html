@@ -185,7 +185,6 @@
         </div>
     </div>
 
-    <script src="/tauri.js" type="application/javascript"></script>
     <script>
         let invoke;
         let sortBtn;
@@ -193,22 +192,21 @@
         let log;
 
         async function initTauri() {
-            try {
-                await window.__TAURI__.tauri.invoke('get_all_mappings');
-                invoke = window.__TAURI__.tauri.invoke;
+            if (window.__TAURI__) {
+                invoke = window.__TAURI__.invoke;
                 return true;
-            } catch (e) {
-                console.error('Failed to initialize Tauri:', e);
-                return false;
             }
+            return false;
         }
 
         async function init() {
             try {
                 console.log('Page loaded, initializing...');
+                
                 sortBtn = document.getElementById('sortBtn');
                 status = document.getElementById('status');
                 log = document.getElementById('log');
+
                 let retries = 0;
                 while (retries < 10) {
                     if (await initTauri()) {
@@ -267,6 +265,7 @@
             entry.textContent = msg;
             log.insertBefore(entry, log.firstChild);
         }
+
         init();
     </script>
 </body>
