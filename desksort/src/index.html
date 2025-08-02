@@ -187,102 +187,63 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const checkTauri = setInterval(() => {
-                if (window.__TAURI__) {
-                    clearInterval(checkTauri);
-                    init();
-                }
-            }, 50);
-            setTimeout(() => {
-                clearInterval(checkTauri);
-                if (!window.__TAURI__) {
-                    console.error('Tauri API not found after timeout');
-                    showStatus('Failed to initialize Tauri API', true);
-                }
-            }, 5000);
-        });
+            let status = document.getElementById('status');
+            let sortBtn = document.getElementById('sortBtn');
+            let log = document.getElementById('log');
 
-        let invoke;
-        let sortBtn;
-        let status;
-        let log;
-
-        function showStatus(msg, isError = false) {
-            console.log(`Status: ${msg} (${isError ? 'error' : 'success'})`);
-            if (!status) {
-                status = document.getElementById('status');
-            }
-            status.textContent = msg;
-            status.className = `status ${isError ? 'error' : 'success'}`;
-            status.style.display = 'block';
-            setTimeout(() => status.style.display = 'none', 3000);
-        }
-
-        async function initTauri() {
-            if (window.__TAURI__) {
-                invoke = window.__TAURI__.invoke;
-                return true;
-            }
-            return false;
-        }
-
-        async function init() {
-            try {
-                console.log('Page loaded, initializing...');
-                
-                sortBtn = document.getElementById('sortBtn');
-                status = document.getElementById('status');
-                log = document.getElementById('log');
-
-                if (!await initTauri()) {
-                    throw new Error('Failed to initialize Tauri API');
-                }
-
-                sortBtn.onclick = sortDesktop;
-            } catch (e) {
-                console.error('Failed to initialize:', e);
-                showStatus('Failed to initialize app', true);
-            }
-        }
-
-        async function sortDesktop() {
-            try {
-                sortBtn.disabled = true;
-                status.textContent = 'Sorting...';
-                status.className = 'status';
+            function showStatus(msg, isError = false) {
+                console.log(`Status: ${msg} (${isError ? 'error' : 'success'})`);
+                status.textContent = msg;
+                status.className = `status ${isError ? 'error' : 'success'}`;
                 status.style.display = 'block';
-
-                const result = await invoke('scan_and_sort');
-
-                if (result.errors.length > 0) {
-                    status.textContent = `Completed with ${result.errors.length} errors`;
-                    status.className = 'status error';
-                } else {
-                    status.textContent = `Moved ${result.moved_files.length} items`;
-                    status.className = 'status success';
-                }
-
-                result.moved_files.forEach(msg => addLog(`✓ ${msg}`));
-                result.errors.forEach(err => addLog(`⚠ ${err}`));
-
-                setTimeout(() => {
-                    status.style.display = 'none';
-                }, 5000);
-            } catch (e) {
-                status.textContent = 'Failed to sort desktop';
-                status.className = 'status error';
-                addLog(`Error: ${e}`);
-            } finally {
-                sortBtn.disabled = false;
+                setTimeout(() => status.style.display = 'none', 3000);
             }
-        }
 
-        function addLog(msg) {
-            const entry = document.createElement('div');
-            entry.className = 'log-entry';
-            entry.textContent = msg;
-            log.insertBefore(entry, log.firstChild);
-        }
+            function addLog(msg) {
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.textContent = msg;
+                log.insertBefore(entry, log.firstChild);
+            }
+
+            async function sortDesktop() {
+                try {
+                    sortBtn.disabled = true;
+                    status.textContent = 'Sorting...';
+                    status.className = 'status';
+                    status.style.display = 'block';
+
+                    const result = await window.__TAURI__.invoke('scan_and_sort');
+
+                    if (result.errors.length > 0) {
+                        status.textContent = `Completed with ${result.errors.length} errors`;
+                        status.className = 'status error';
+                    } else {
+                        status.textContent = `Moved ${result.moved_files.length} items`;
+                        status.className = 'status success';
+                    }
+
+                    result.moved_files.forEach(msg => addLog(`✓ ${msg}`));
+                    result.errors.forEach(err => addLog(`⚠ ${err}`));
+
+                    setTimeout(() => {
+                        status.style.display = 'none';
+                    }, 5000);
+                } catch (e) {
+                    status.textContent = 'Failed to sort desktop';
+                    status.className = 'status error';
+                    addLog(`Error: ${e}`);
+                } finally {
+                    sortBtn.disabled = false;
+                }
+            }
+
+            if (window.__TAURI__) {
+                sortBtn.onclick = sortDesktop;
+            } else {
+                showStatus('This app requires Tauri to run', true);
+            }
+        });
     </script>
 </body>
 </html> 
