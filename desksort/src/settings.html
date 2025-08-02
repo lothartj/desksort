@@ -86,24 +86,22 @@
             margin-bottom: 12px;
         }
 
-        .extension-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 12px;
-            margin-bottom: 12px;
-        }
-
         .extension-item {
-            background: var(--bg);
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 14px;
+            display: grid;
+            grid-template-columns: 120px 1fr auto;
+            gap: 12px;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
         }
 
-        .path-input {
-            display: flex;
-            gap: 8px;
-            margin-top: 12px;
+        .extension-item:last-child {
+            border: none;
+        }
+
+        .extension-name {
+            font-weight: 500;
+            color: var(--primary);
         }
 
         input[type="text"] {
@@ -112,6 +110,7 @@
             border: 1px solid var(--border);
             border-radius: var(--radius);
             font-size: 14px;
+            width: 100%;
         }
 
         input[type="text"]:focus {
@@ -127,6 +126,7 @@
             border-radius: var(--radius);
             font-weight: 500;
             cursor: pointer;
+            white-space: nowrap;
         }
 
         button.browse {
@@ -162,8 +162,10 @@
         }
 
         @media (max-width: 600px) {
-            .extension-list {
+            .extension-item {
                 grid-template-columns: 1fr;
+                gap: 8px;
+                padding: 12px 0;
             }
         }
     </style>
@@ -190,9 +192,20 @@
 
     <div id="status" class="status"></div>
 
-    <script type="module">
-        import { invoke } from '@tauri-apps/api/tauri';
-        import { open } from '@tauri-apps/api/dialog';
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('Page loaded, initializing...');
+            if (!window.__TAURI__) {
+                console.error('Tauri API not found!');
+                showStatus('Failed to initialize Tauri API', true);
+                return;
+            }
+            console.log('Tauri API found, continuing...');
+            init();
+        });
+
+        const { invoke } = window.__TAURI__.tauri;
+        const { open } = window.__TAURI__.dialog;
 
         const EXTENSIONS = {
             Documents: ['.pdf', '.docx', '.doc', '.txt', '.odt', '.rtf'],
@@ -211,55 +224,68 @@
         const saveBtn = document.getElementById('saveBtn');
         const status = document.getElementById('status');
 
+        function renderUI(mappings = []) {
+            console.log('Rendering UI with mappings:', mappings);
+            const mappingMap = new Map(mappings.map(m => [m.extension, m.target_path]));
+            
+            extensionGroups.innerHTML = Object.entries(EXTENSIONS).map(([group, exts]) => {
+                return `
+                    <div class="extension-group">
+                        <div class="extension-header">${group}</div>
+                        ${exts.map(ext => {
+                            const path = mappingMap.get(ext) || '';
+                            const inputId = ext.replace(/[.]/g, '_');
+                            return `
+                                <div class="extension-item">
+                                    <div class="extension-name">${ext}</div>
+                                    <input type="text" 
+                                        id="${inputId}" 
+                                        value="${path}" 
+                                        placeholder="Select destination folder">
+                                    <button class="browse" onclick="browsePath('${inputId}')">
+                                        Browse
+                                    </button>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            }).join('');
+        }
+
         async function init() {
             try {
+                console.log('Fetching saved mappings...');
                 const mappings = await invoke('get_all_mappings');
-                const mappingMap = new Map(mappings.map(m => [m.extension, m.target_path]));
-                
-                extensionGroups.innerHTML = Object.entries(EXTENSIONS).map(([group, exts]) => {
-                    const path = mappingMap.get(exts[0]) || '';
-                    return `
-                        <div class="extension-group">
-                            <div class="extension-header">${group}</div>
-                            <div class="extension-list">
-                                ${exts.map(ext => `
-                                    <div class="extension-item">${ext}</div>
-                                `).join('')}
-                            </div>
-                            <div class="path-input">
-                                <input type="text" 
-                                    id="${group}" 
-                                    value="${path}" 
-                                    placeholder="Select destination folder">
-                                <button class="browse" onclick="window.browsePath('${group}', ${JSON.stringify(exts)})">
-                                    Browse
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
+                console.log('Got mappings:', mappings);
+                renderUI(mappings);
             } catch (e) {
-                showStatus('Failed to load settings', true);
-                console.error(e);
+                console.error('Failed to load settings:', e);
+                showStatus('Failed to load settings, showing default UI', true);
+                renderUI([]); // Render empty UI if loading fails
             }
         }
 
-        window.browsePath = async (groupId, extensions) => {
+        async function browsePath(inputId) {
             try {
+                console.log('Opening folder dialog for:', inputId);
                 const selected = await open({
                     directory: true,
                     multiple: false
                 });
+                console.log('Selected path:', selected);
                 if (selected) {
-                    document.getElementById(groupId).value = selected;
+                    document.getElementById(inputId).value = selected;
                 }
             } catch (e) {
+                console.error('Failed to select folder:', e);
                 showStatus('Failed to select folder', true);
-                console.error(e);
             }
-        };
+        }
+        window.browsePath = browsePath;
 
         function showStatus(msg, isError = false) {
+            console.log(`Status: ${msg} (${isError ? 'error' : 'success'})`);
             status.textContent = msg;
             status.className = `status ${isError ? 'error' : 'success'}`;
             status.style.display = 'block';
@@ -268,11 +294,14 @@
 
         saveBtn.onclick = async () => {
             try {
+                console.log('Saving settings...');
                 let saved = 0;
-                for (const [group, exts] of Object.entries(EXTENSIONS)) {
-                    const path = document.getElementById(group).value.trim();
-                    if (path) {
-                        for (const ext of exts) {
+                for (const [_, exts] of Object.entries(EXTENSIONS)) {
+                    for (const ext of exts) {
+                        const inputId = ext.replace(/[.]/g, '_');
+                        const path = document.getElementById(inputId).value.trim();
+                        if (path) {
+                            console.log(`Saving mapping: ${ext} -> ${path}`);
                             await invoke('set_path_mapping', { 
                                 extension: ext, 
                                 target_path: path 
@@ -281,14 +310,13 @@
                         }
                     }
                 }
+                console.log(`Saved ${saved} mappings`);
                 showStatus(`Saved ${saved} path mappings`);
             } catch (e) {
+                console.error('Failed to save settings:', e);
                 showStatus('Failed to save settings', true);
-                console.error(e);
             }
         };
-
-        init();
     </script>
 </body>
 </html> 

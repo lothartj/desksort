@@ -13,5 +13,10 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^1.5.0"
-  }
+  },
+  "description": "A cross-platform desktop application that automatically organizes your desktop files into categorized folders. Built with Tauri (Rust) and vanilla web technologies.",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }

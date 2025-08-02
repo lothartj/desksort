@@ -49,6 +49,84 @@ fn init_db(conn: &Connection) -> Result<(), Error> {
         )",
         [],
     )?;
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM path_mappings",
+        [],
+        |row| row.get(0),
+    )?;
+
+    if count == 0 {
+        println!("Initializing default paths...");
+        let desktop = get_desktop_path()?;
+        let sorted_dir = desktop.join("Sorted");
+
+        let default_paths = [
+            (".pdf", sorted_dir.join("Documents")),
+            (".docx", sorted_dir.join("Documents")),
+            (".doc", sorted_dir.join("Documents")),
+            (".txt", sorted_dir.join("Documents")),
+            (".odt", sorted_dir.join("Documents")),
+            (".rtf", sorted_dir.join("Documents")),
+            (".xls", sorted_dir.join("Spreadsheets")),
+            (".xlsx", sorted_dir.join("Spreadsheets")),
+            (".csv", sorted_dir.join("Spreadsheets")),
+            (".ods", sorted_dir.join("Spreadsheets")),
+            (".pptx", sorted_dir.join("Presentations")),
+            (".odp", sorted_dir.join("Presentations")),
+            (".key", sorted_dir.join("Presentations")),
+            (".jpg", sorted_dir.join("Images")),
+            (".jpeg", sorted_dir.join("Images")),
+            (".png", sorted_dir.join("Images")),
+            (".gif", sorted_dir.join("Images")),
+            (".bmp", sorted_dir.join("Images")),
+            (".webp", sorted_dir.join("Images")),
+            (".tiff", sorted_dir.join("Images")),
+            (".mp4", sorted_dir.join("Videos")),
+            (".mkv", sorted_dir.join("Videos")),
+            (".avi", sorted_dir.join("Videos")),
+            (".mov", sorted_dir.join("Videos")),
+            (".webm", sorted_dir.join("Videos")),
+            (".flv", sorted_dir.join("Videos")),
+            (".wmv", sorted_dir.join("Videos")),
+            (".mp3", sorted_dir.join("Audio")),
+            (".wav", sorted_dir.join("Audio")),
+            (".aac", sorted_dir.join("Audio")),
+            (".ogg", sorted_dir.join("Audio")),
+            (".flac", sorted_dir.join("Audio")),
+            (".zip", sorted_dir.join("Archives")),
+            (".rar", sorted_dir.join("Archives")),
+            (".7z", sorted_dir.join("Archives")),
+            (".tar", sorted_dir.join("Archives")),
+            (".gz", sorted_dir.join("Archives")),
+            (".tar.gz", sorted_dir.join("Archives")),
+            (".exe", sorted_dir.join("Executables")),
+            (".msi", sorted_dir.join("Executables")),
+            (".sh", sorted_dir.join("Executables")),
+            (".bat", sorted_dir.join("Executables")),
+            (".AppImage", sorted_dir.join("Executables")),
+            (".js", sorted_dir.join("Code")),
+            (".py", sorted_dir.join("Code")),
+            (".rs", sorted_dir.join("Code")),
+            (".cpp", sorted_dir.join("Code")),
+            (".java", sorted_dir.join("Code")),
+            (".html", sorted_dir.join("Code")),
+            (".css", sorted_dir.join("Code")),
+            (".json", sorted_dir.join("Code")),
+            (".ts", sorted_dir.join("Code")),
+            ("folder", sorted_dir.join("Folders")),
+        ];
+
+        let tx = conn.transaction()?;
+        for (ext, path) in default_paths.iter() {
+            tx.execute(
+                "INSERT OR IGNORE INTO path_mappings (extension, target_path) VALUES (?, ?)",
+                params![ext, path.to_str().unwrap()],
+            )?;
+        }
+        tx.commit()?;
+        println!("Default paths initialized");
+    }
+
     Ok(())
 }
 
@@ -88,6 +166,7 @@ pub mod commands {
 
     #[tauri::command]
     pub async fn set_path_mapping(extension: String, target_path: String, state: State<'_, AppState>) -> Result<(), Error> {
+        println!("Setting path mapping: {} -> {}", extension, target_path);
         let conn = state.db.lock().unwrap();
         conn.execute(
             "INSERT OR REPLACE INTO path_mappings (extension, target_path) VALUES (?, ?)",
@@ -98,6 +177,7 @@ pub mod commands {
 
     #[tauri::command]
     pub async fn get_all_mappings(state: State<'_, AppState>) -> Result<Vec<PathMapping>, Error> {
+        println!("Getting all mappings...");
         let conn = state.db.lock().unwrap();
         let mut stmt = conn.prepare("SELECT extension, target_path FROM path_mappings")?;
         let mappings = stmt.query_map([], |row| {
@@ -111,6 +191,7 @@ pub mod commands {
         for mapping in mappings {
             result.push(mapping?);
         }
+        println!("Found {} mappings", result.len());
         Ok(result)
     }
 
