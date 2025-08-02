@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DeskSort Settings</title>
+    <script type="module">
+        import { invoke } from '@tauri-apps/api/tauri';
+        import { open } from '@tauri-apps/api/dialog';
+        window.invoke = invoke;
+        window.openDialog = open;
+    </script>
     <style>
         :root {
             --primary: #007AFF;
@@ -193,122 +199,118 @@
     <div id="status" class="status"></div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const EXTENSIONS = {
-                Documents: ['.pdf', '.docx', '.doc', '.txt', '.odt', '.rtf'],
-                Spreadsheets: ['.xls', '.xlsx', '.csv', '.ods'],
-                Presentations: ['.pptx', '.odp', '.key'],
-                Images: ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff'],
-                Videos: ['.mp4', '.mkv', '.avi', '.mov', '.webm', '.flv', '.wmv'],
-                Audio: ['.mp3', '.wav', '.aac', '.ogg', '.flac'],
-                Archives: ['.zip', '.rar', '.7z', '.tar', '.gz', '.tar.gz'],
-                Executables: ['.exe', '.msi', '.sh', '.bat', '.AppImage'],
-                Code: ['.js', '.py', '.rs', '.cpp', '.java', '.html', '.css', '.json', '.ts'],
-                Folders: ['folder']
-            };
+        const EXTENSIONS = {
+            Documents: ['.pdf', '.docx', '.doc', '.txt', '.odt', '.rtf'],
+            Spreadsheets: ['.xls', '.xlsx', '.csv', '.ods'],
+            Presentations: ['.pptx', '.odp', '.key'],
+            Images: ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff'],
+            Videos: ['.mp4', '.mkv', '.avi', '.mov', '.webm', '.flv', '.wmv'],
+            Audio: ['.mp3', '.wav', '.aac', '.ogg', '.flac'],
+            Archives: ['.zip', '.rar', '.7z', '.tar', '.gz', '.tar.gz'],
+            Executables: ['.exe', '.msi', '.sh', '.bat', '.AppImage'],
+            Code: ['.js', '.py', '.rs', '.cpp', '.java', '.html', '.css', '.json', '.ts'],
+            Folders: ['folder']
+        };
 
-            let status = document.getElementById('status');
-            let extensionGroups = document.getElementById('extensionGroups');
-            let saveBtn = document.getElementById('saveBtn');
+        let status = document.getElementById('status');
+        let extensionGroups = document.getElementById('extensionGroups');
+        let saveBtn = document.getElementById('saveBtn');
 
-            function showStatus(msg, isError = false) {
-                console.log(`Status: ${msg} (${isError ? 'error' : 'success'})`);
-                status.textContent = msg;
-                status.className = `status ${isError ? 'error' : 'success'}`;
-                status.style.display = 'block';
-                setTimeout(() => status.style.display = 'none', 3000);
-            }
+        function showStatus(msg, isError = false) {
+            console.log(`Status: ${msg} (${isError ? 'error' : 'success'})`);
+            status.textContent = msg;
+            status.className = `status ${isError ? 'error' : 'success'}`;
+            status.style.display = 'block';
+            setTimeout(() => status.style.display = 'none', 3000);
+        }
 
-            function renderUI(mappings = []) {
-                console.log('Rendering UI with mappings:', mappings);
-                const mappingMap = new Map(mappings.map(m => [m.extension, m.target_path]));
-                
-                extensionGroups.innerHTML = Object.entries(EXTENSIONS).map(([group, exts]) => {
-                    return `
-                        <div class="extension-group">
-                            <div class="extension-header">${group}</div>
-                            ${exts.map(ext => {
-                                const path = mappingMap.get(ext) || '';
-                                const inputId = ext.replace(/[.]/g, '_');
-                                return `
-                                    <div class="extension-item">
-                                        <div class="extension-name">${ext}</div>
-                                        <input type="text" 
-                                            id="${inputId}" 
-                                            value="${path}" 
-                                            placeholder="Select destination folder">
-                                        <button class="browse" onclick="browsePath('${inputId}')">
-                                            Browse
-                                        </button>
-                                    </div>
-                                `;
-                            }).join('')}
-                        </div>
-                    `;
-                }).join('');
-            }
-
-            window.browsePath = async (inputId) => {
-                try {
-                    console.log('Opening folder dialog for:', inputId);
-                    const selected = await window.__TAURI__.dialog.open({
-                        directory: true,
-                        multiple: false
-                    });
-                    console.log('Selected path:', selected);
-                    if (selected) {
-                        document.getElementById(inputId).value = selected;
-                    }
-                } catch (e) {
-                    console.error('Failed to select folder:', e);
-                    showStatus('Failed to select folder', true);
-                }
-            };
-
-            async function handleSave() {
-                try {
-                    console.log('Saving settings...');
-                    let saved = 0;
-                    for (const [_, exts] of Object.entries(EXTENSIONS)) {
-                        for (const ext of exts) {
+        function renderUI(mappings = []) {
+            console.log('Rendering UI with mappings:', mappings);
+            const mappingMap = new Map(mappings.map(m => [m.extension, m.target_path]));
+            
+            extensionGroups.innerHTML = Object.entries(EXTENSIONS).map(([group, exts]) => {
+                return `
+                    <div class="extension-group">
+                        <div class="extension-header">${group}</div>
+                        ${exts.map(ext => {
+                            const path = mappingMap.get(ext) || '';
                             const inputId = ext.replace(/[.]/g, '_');
-                            const path = document.getElementById(inputId).value.trim();
-                            if (path) {
-                                console.log(`Saving mapping: ${ext} -> ${path}`);
-                                await window.__TAURI__.invoke('set_path_mapping', { 
-                                    extension: ext, 
-                                    target_path: path 
-                                });
-                                saved++;
-                            }
+                            return `
+                                <div class="extension-item">
+                                    <div class="extension-name">${ext}</div>
+                                    <input type="text" 
+                                        id="${inputId}" 
+                                        value="${path}" 
+                                        placeholder="Select destination folder">
+                                    <button class="browse" onclick="browsePath('${inputId}')">
+                                        Browse
+                                    </button>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.browsePath = async (inputId) => {
+            try {
+                console.log('Opening folder dialog for:', inputId);
+                const selected = await window.openDialog({
+                    directory: true,
+                    multiple: false
+                });
+                console.log('Selected path:', selected);
+                if (selected) {
+                    document.getElementById(inputId).value = selected;
+                }
+            } catch (e) {
+                console.error('Failed to select folder:', e);
+                showStatus('Failed to select folder', true);
+            }
+        };
+
+        async function handleSave() {
+            try {
+                console.log('Saving settings...');
+                let saved = 0;
+                for (const [_, exts] of Object.entries(EXTENSIONS)) {
+                    for (const ext of exts) {
+                        const inputId = ext.replace(/[.]/g, '_');
+                        const path = document.getElementById(inputId).value.trim();
+                        if (path) {
+                            console.log(`Saving mapping: ${ext} -> ${path}`);
+                            await window.invoke('set_path_mapping', { 
+                                extension: ext, 
+                                target_path: path 
+                            });
+                            saved++;
                         }
                     }
-                    console.log(`Saved ${saved} mappings`);
-                    showStatus(`Saved ${saved} path mappings`);
-                } catch (e) {
-                    console.error('Failed to save settings:', e);
-                    showStatus('Failed to save settings', true);
                 }
+                console.log(`Saved ${saved} mappings`);
+                showStatus(`Saved ${saved} path mappings`);
+            } catch (e) {
+                console.error('Failed to save settings:', e);
+                showStatus('Failed to save settings', true);
             }
+        }
 
-            async function init() {
-                try {
-                    console.log('Fetching saved mappings...');
-                    const mappings = await window.__TAURI__.invoke('get_all_mappings');
-                    console.log('Got mappings:', mappings);
-                    renderUI(mappings);
-                    saveBtn.onclick = handleSave;
-                } catch (e) {
-                    console.error('Failed to initialize:', e);
-                    showStatus('Failed to initialize app', true);
-                }
+        async function init() {
+            try {
+                console.log('Fetching saved mappings...');
+                const mappings = await window.invoke('get_all_mappings');
+                console.log('Got mappings:', mappings);
+                renderUI(mappings);
+                saveBtn.onclick = handleSave;
+            } catch (e) {
+                console.error('Failed to initialize:', e);
+                showStatus('Failed to initialize app', true);
             }
+        }
 
-            if (window.__TAURI__) {
-                init();
-            } else {
-                showStatus('This app requires Tauri to run', true);
-            }
+        document.addEventListener('DOMContentLoaded', () => {
+            init();
         });
     </script>
 </body>

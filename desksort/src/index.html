@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DeskSort</title>
+    <script type="module">
+        import { invoke } from '@tauri-apps/api/tauri';
+        window.invoke = invoke;
+    </script>
     <style>
         :root {
             --primary: #007AFF;
@@ -186,63 +190,59 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            let status = document.getElementById('status');
-            let sortBtn = document.getElementById('sortBtn');
-            let log = document.getElementById('log');
+        let status = document.getElementById('status');
+        let sortBtn = document.getElementById('sortBtn');
+        let log = document.getElementById('log');
 
-            function showStatus(msg, isError = false) {
-                console.log(`Status: ${msg} (${isError ? 'error' : 'success'})`);
-                status.textContent = msg;
-                status.className = `status ${isError ? 'error' : 'success'}`;
+        function showStatus(msg, isError = false) {
+            console.log(`Status: ${msg} (${isError ? 'error' : 'success'})`);
+            status.textContent = msg;
+            status.className = `status ${isError ? 'error' : 'success'}`;
+            status.style.display = 'block';
+            setTimeout(() => status.style.display = 'none', 3000);
+        }
+
+        function addLog(msg) {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = msg;
+            log.insertBefore(entry, log.firstChild);
+        }
+
+        async function sortDesktop() {
+            try {
+                sortBtn.disabled = true;
+                status.textContent = 'Sorting...';
+                status.className = 'status';
                 status.style.display = 'block';
-                setTimeout(() => status.style.display = 'none', 3000);
-            }
 
-            function addLog(msg) {
-                const entry = document.createElement('div');
-                entry.className = 'log-entry';
-                entry.textContent = msg;
-                log.insertBefore(entry, log.firstChild);
-            }
+                const result = await window.invoke('scan_and_sort');
 
-            async function sortDesktop() {
-                try {
-                    sortBtn.disabled = true;
-                    status.textContent = 'Sorting...';
-                    status.className = 'status';
-                    status.style.display = 'block';
-
-                    const result = await window.__TAURI__.invoke('scan_and_sort');
-
-                    if (result.errors.length > 0) {
-                        status.textContent = `Completed with ${result.errors.length} errors`;
-                        status.className = 'status error';
-                    } else {
-                        status.textContent = `Moved ${result.moved_files.length} items`;
-                        status.className = 'status success';
-                    }
-
-                    result.moved_files.forEach(msg => addLog(`✓ ${msg}`));
-                    result.errors.forEach(err => addLog(`⚠ ${err}`));
-
-                    setTimeout(() => {
-                        status.style.display = 'none';
-                    }, 5000);
-                } catch (e) {
-                    status.textContent = 'Failed to sort desktop';
+                if (result.errors.length > 0) {
+                    status.textContent = `Completed with ${result.errors.length} errors`;
                     status.className = 'status error';
-                    addLog(`Error: ${e}`);
-                } finally {
-                    sortBtn.disabled = false;
+                } else {
+                    status.textContent = `Moved ${result.moved_files.length} items`;
+                    status.className = 'status success';
                 }
-            }
 
-            if (window.__TAURI__) {
-                sortBtn.onclick = sortDesktop;
-            } else {
-                showStatus('This app requires Tauri to run', true);
+                result.moved_files.forEach(msg => addLog(`✓ ${msg}`));
+                result.errors.forEach(err => addLog(`⚠ ${err}`));
+
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 5000);
+            } catch (e) {
+                status.textContent = 'Failed to sort desktop';
+                status.className = 'status error';
+                addLog(`Error: ${e}`);
+            } finally {
+                sortBtn.disabled = false;
             }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            sortBtn.onclick = sortDesktop;
         });
     </script>
 </body>
