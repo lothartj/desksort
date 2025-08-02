@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeskSort</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>DeskSort</h1>
+            <p>Automatically organize your desktop files</p>
+        </header>
+
+        <main>
+            <section class="action-section">
+                <button id="sortNowBtn" class="primary-button">Sort Now</button>
+                <div id="sortingStatus" class="status-box"></div>
+            </section>
+
+            <section class="settings-section">
+                <h2>Settings</h2>
+                <div id="categoryMappings">
+                </div>
+                <button id="saveSettingsBtn" class="secondary-button">Save Settings</button>
+            </section>
+
+            <section class="log-section">
+                <h2>Activity Log</h2>
+                <div id="logContainer" class="log-container"></div>
+            </section>
+        </main>
+    </div>
+
+    <script src="./main.js" type="module"></script>
+</body>
+</html> 
