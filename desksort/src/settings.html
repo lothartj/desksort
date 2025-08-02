@@ -12,6 +12,8 @@
             --text: #1C1C1E;
             --border: #E5E5EA;
             --radius: 12px;
+            --success: #34C759;
+            --error: #FF3B30;
         }
 
         * {
@@ -146,6 +148,17 @@
             border-radius: var(--radius);
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             display: none;
+            z-index: 100;
+        }
+
+        .status.success {
+            background: rgba(52, 199, 89, 0.1);
+            color: var(--success);
+        }
+
+        .status.error {
+            background: rgba(255, 59, 48, 0.1);
+            color: var(--error);
         }
 
         @media (max-width: 600px) {
@@ -199,62 +212,78 @@
         const status = document.getElementById('status');
 
         async function init() {
-            const mappings = await invoke('get_all_mappings');
-            const mappingMap = new Map(mappings.map(m => [m.extension, m.target_path]));
-            
-            extensionGroups.innerHTML = Object.entries(EXTENSIONS).map(([group, exts]) => {
-                const path = mappingMap.get(exts[0]) || '';
-                return `
-                    <div class="extension-group">
-                        <div class="extension-header">${group}</div>
-                        <div class="extension-list">
-                            ${exts.map(ext => `
-                                <div class="extension-item">${ext}</div>
-                            `).join('')}
+            try {
+                const mappings = await invoke('get_all_mappings');
+                const mappingMap = new Map(mappings.map(m => [m.extension, m.target_path]));
+                
+                extensionGroups.innerHTML = Object.entries(EXTENSIONS).map(([group, exts]) => {
+                    const path = mappingMap.get(exts[0]) || '';
+                    return `
+                        <div class="extension-group">
+                            <div class="extension-header">${group}</div>
+                            <div class="extension-list">
+                                ${exts.map(ext => `
+                                    <div class="extension-item">${ext}</div>
+                                `).join('')}
+                            </div>
+                            <div class="path-input">
+                                <input type="text" 
+                                    id="${group}" 
+                                    value="${path}" 
+                                    placeholder="Select destination folder">
+                                <button class="browse" onclick="window.browsePath('${group}', ${JSON.stringify(exts)})">
+                                    Browse
+                                </button>
+                            </div>
                         </div>
-                        <div class="path-input">
-                            <input type="text" 
-                                id="${group}" 
-                                value="${path}" 
-                                placeholder="Select destination folder">
-                            <button class="browse" onclick="window.browsePath('${group}', ${JSON.stringify(exts)})">
-                                Browse
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+                    `;
+                }).join('');
+            } catch (e) {
+                showStatus('Failed to load settings', true);
+                console.error(e);
+            }
         }
 
         window.browsePath = async (groupId, extensions) => {
-            const selected = await open({
-                directory: true,
-                multiple: false
-            });
-            if (selected) {
-                document.getElementById(groupId).value = selected;
+            try {
+                const selected = await open({
+                    directory: true,
+                    multiple: false
+                });
+                if (selected) {
+                    document.getElementById(groupId).value = selected;
+                }
+            } catch (e) {
+                showStatus('Failed to select folder', true);
+                console.error(e);
             }
         };
 
-        function showStatus(msg) {
+        function showStatus(msg, isError = false) {
             status.textContent = msg;
+            status.className = `status ${isError ? 'error' : 'success'}`;
             status.style.display = 'block';
             setTimeout(() => status.style.display = 'none', 3000);
         }
 
         saveBtn.onclick = async () => {
             try {
+                let saved = 0;
                 for (const [group, exts] of Object.entries(EXTENSIONS)) {
                     const path = document.getElementById(group).value.trim();
                     if (path) {
                         for (const ext of exts) {
-                            await invoke('set_path_mapping', { extension: ext, targetPath: path });
+                            await invoke('set_path_mapping', { 
+                                extension: ext, 
+                                target_path: path 
+                            });
+                            saved++;
                         }
                     }
                 }
-                showStatus('Settings saved successfully');
+                showStatus(`Saved ${saved} path mappings`);
             } catch (e) {
-                showStatus('Failed to save settings');
+                showStatus('Failed to save settings', true);
                 console.error(e);
             }
         };
