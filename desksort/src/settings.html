@@ -194,7 +194,7 @@
 
     <script>
         let invoke;
-        let open;
+        let dialog;
         let status;
         let extensionGroups;
         let saveBtn;
@@ -215,7 +215,7 @@
         async function initTauri() {
             if (window.__TAURI__) {
                 invoke = window.__TAURI__.invoke;
-                open = window.__TAURI__.dialog.open;
+                dialog = window.__TAURI__.dialog;
                 return true;
             }
             return false;
@@ -238,7 +238,7 @@
                     retries++;
                 }
 
-                if (!invoke) {
+                if (!invoke || !dialog) {
                     throw new Error('Failed to initialize Tauri API');
                 }
 
@@ -286,7 +286,7 @@
         async function browsePath(inputId) {
             try {
                 console.log('Opening folder dialog for:', inputId);
-                const selected = await open({
+                const selected = await dialog.open({
                     directory: true,
                     multiple: false
                 });
