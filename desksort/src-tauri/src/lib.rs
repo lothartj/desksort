@@ -41,7 +41,7 @@ pub struct AppState {
     db: Mutex<Connection>,
 }
 
-fn init_db(conn: &Connection) -> Result<(), Error> {
+fn init_db(conn: &mut Connection) -> Result<(), Error> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS path_mappings (
             extension TEXT PRIMARY KEY,
@@ -49,6 +49,8 @@ fn init_db(conn: &Connection) -> Result<(), Error> {
         )",
         [],
     )?;
+
+    // Check if we need to initialize default paths
     let count: i64 = conn.query_row(
         "SELECT COUNT(*) FROM path_mappings",
         [],
@@ -295,8 +297,8 @@ pub struct SortResult {
 
 pub fn run() {
     let db_path = get_db_path().expect("Failed to get database path");
-    let conn = Connection::open(db_path).expect("Failed to open database");
-    init_db(&conn).expect("Failed to initialize database");
+    let mut conn = Connection::open(db_path).expect("Failed to open database");
+    init_db(&mut conn).expect("Failed to initialize database");
 
     tauri::Builder::default()
         .manage(AppState {
