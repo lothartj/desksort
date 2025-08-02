@@ -192,20 +192,13 @@
 
     <div id="status" class="status"></div>
 
+    <script src="/tauri.js" type="application/javascript"></script>
     <script>
-        window.addEventListener('DOMContentLoaded', () => {
-            console.log('Page loaded, initializing...');
-            if (!window.__TAURI__) {
-                console.error('Tauri API not found!');
-                showStatus('Failed to initialize Tauri API', true);
-                return;
-            }
-            console.log('Tauri API found, continuing...');
-            init();
-        });
-
-        const { invoke } = window.__TAURI__.tauri;
-        const { open } = window.__TAURI__.dialog;
+        let invoke;
+        let open;
+        let status;
+        let extensionGroups;
+        let saveBtn;
 
         const EXTENSIONS = {
             Documents: ['.pdf', '.docx', '.doc', '.txt', '.odt', '.rtf'],
@@ -220,9 +213,47 @@
             Folders: ['folder']
         };
 
-        const extensionGroups = document.getElementById('extensionGroups');
-        const saveBtn = document.getElementById('saveBtn');
-        const status = document.getElementById('status');
+        async function initTauri() {
+            try {
+                await window.__TAURI__.tauri.invoke('get_all_mappings');
+                invoke = window.__TAURI__.tauri.invoke;
+                open = window.__TAURI__.dialog.open;
+                return true;
+            } catch (e) {
+                console.error('Failed to initialize Tauri:', e);
+                return false;
+            }
+        }
+
+        async function init() {
+            try {
+                console.log('Page loaded, initializing...');
+                status = document.getElementById('status');
+                extensionGroups = document.getElementById('extensionGroups');
+                saveBtn = document.getElementById('saveBtn');
+                let retries = 0;
+                while (retries < 10) {
+                    if (await initTauri()) {
+                        break;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    retries++;
+                }
+
+                if (!invoke) {
+                    throw new Error('Failed to initialize Tauri API');
+                }
+
+                console.log('Fetching saved mappings...');
+                const mappings = await invoke('get_all_mappings');
+                console.log('Got mappings:', mappings);
+                renderUI(mappings);
+                saveBtn.onclick = handleSave;
+            } catch (e) {
+                console.error('Failed to initialize:', e);
+                showStatus('Failed to initialize app', true);
+            }
+        }
 
         function renderUI(mappings = []) {
             console.log('Rendering UI with mappings:', mappings);
@@ -253,19 +284,6 @@
             }).join('');
         }
 
-        async function init() {
-            try {
-                console.log('Fetching saved mappings...');
-                const mappings = await invoke('get_all_mappings');
-                console.log('Got mappings:', mappings);
-                renderUI(mappings);
-            } catch (e) {
-                console.error('Failed to load settings:', e);
-                showStatus('Failed to load settings, showing default UI', true);
-                renderUI([]); // Render empty UI if loading fails
-            }
-        }
-
         async function browsePath(inputId) {
             try {
                 console.log('Opening folder dialog for:', inputId);
@@ -292,7 +310,7 @@
             setTimeout(() => status.style.display = 'none', 3000);
         }
 
-        saveBtn.onclick = async () => {
+        async function handleSave() {
             try {
                 console.log('Saving settings...');
                 let saved = 0;
@@ -316,7 +334,8 @@
                 console.error('Failed to save settings:', e);
                 showStatus('Failed to save settings', true);
             }
-        };
+        }
+        init();
     </script>
 </body>
 </html> 

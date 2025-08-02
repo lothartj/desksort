@@ -185,12 +185,49 @@
         </div>
     </div>
 
+    <script src="/tauri.js" type="application/javascript"></script>
     <script>
-        const { invoke } = window.__TAURI__.tauri;
+        let invoke;
+        let sortBtn;
+        let status;
+        let log;
 
-        const sortBtn = document.getElementById('sortBtn');
-        const status = document.getElementById('status');
-        const log = document.getElementById('log');
+        async function initTauri() {
+            try {
+                await window.__TAURI__.tauri.invoke('get_all_mappings');
+                invoke = window.__TAURI__.tauri.invoke;
+                return true;
+            } catch (e) {
+                console.error('Failed to initialize Tauri:', e);
+                return false;
+            }
+        }
+
+        async function init() {
+            try {
+                console.log('Page loaded, initializing...');
+                sortBtn = document.getElementById('sortBtn');
+                status = document.getElementById('status');
+                log = document.getElementById('log');
+                let retries = 0;
+                while (retries < 10) {
+                    if (await initTauri()) {
+                        break;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    retries++;
+                }
+
+                if (!invoke) {
+                    throw new Error('Failed to initialize Tauri API');
+                }
+
+                sortBtn.onclick = sortDesktop;
+            } catch (e) {
+                console.error('Failed to initialize:', e);
+                showStatus('Failed to initialize app', true);
+            }
+        }
 
         async function sortDesktop() {
             try {
@@ -230,8 +267,7 @@
             entry.textContent = msg;
             log.insertBefore(entry, log.firstChild);
         }
-
-        sortBtn.onclick = sortDesktop;
+        init();
     </script>
 </body>
 </html> 
